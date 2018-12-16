@@ -5,7 +5,6 @@
 <head>
 	<title>Example 07.03 - Particle Basic Material</title>
 	<script type="text/javascript" src="../libs/three.js"></script>
-
 	<script type="text/javascript" src="../libs/stats.js"></script>
 	<script type="text/javascript" src="../libs/dat.gui.js"></script>
 	<style>
@@ -61,13 +60,15 @@
             this.vertexColors = true;
             this.color = 0xffffff;
             this.sizeAttenuation = true;
-            this.rotateSystem = false;
+            this.rotateSystem = true;
+            this.vertex = 10000;
+            this.radiusScale = 150.0;
 
             this.redraw = function () {
                 if (scene.getObjectByName("particles")) {
                     scene.remove(scene.getObjectByName("particles"));
                 }
-                createParticles(controls.size, controls.transparent, controls.opacity, controls.vertexColors, controls.sizeAttenuation, controls.color);
+                createParticles(controls.size, controls.transparent, controls.opacity, controls.vertexColors, controls.sizeAttenuation, controls.color,controls.vertex,controls.radiusScale);
             };
         };
 
@@ -78,6 +79,8 @@
         gui.add(controls, 'vertexColors').onChange(controls.redraw);
         gui.addColor(controls, 'color').onChange(controls.redraw);
         gui.add(controls, 'sizeAttenuation').onChange(controls.redraw);
+        gui.add(controls,'vertex',1000,100000).onChange(controls.redraw);
+        gui.add(controls,'radiusScale',100.0,500.0).onChange(controls.redraw);
         gui.add(controls, 'rotateSystem');
 
         controls.redraw();
@@ -85,34 +88,23 @@
         let nowTime = 0;
 		render();
 
-		function createParticles(size,transparent,opacity,vertexColors,sizeAttenuation,color) {
+		function createParticles(size,transparent,opacity,vertexColors,sizeAttenuation,color,vertex,radiusScale) {
 			var geom = new THREE.Geometry();
+			//console.dir(geom);
 			var material = new THREE.PointsMaterial({
 				size:size,
 				transparent:transparent,
 				opacity:opacity,
 				vertexColors:vertexColors,
 				sizeAttenuation:sizeAttenuation,
-				color:color
+				color:color,
+				vertex:vertex,
+                radiusScale:radiusScale,
+                map: new THREE.TextureLoader().load('img/circle.png')
 			});
 
-			for(var i = 0;i < 30000; i++){
-			    //https://ics.media/entry/10657
-				// var latitude = Math.random() * 360;
-				// var longitude = Math.random() * 360;
-				// var radius =   Math.random() * 180;
-				//
-                // const phi = (latitude) * Math.PI / 180;// 仰角
-                // const theta = (longitude - 180) * Math.PI / 180;// 方位角
-                // var particle = new THREE.Vector3(-(radius) * Math.cos(phi) * Math.cos(theta),(radius) * Math.sin(phi),(radius) * Math.cos(phi) * Math.sin(theta));
-                //http://marupeke296.com/TIPS_No18_Randoms.html
-
-
-				// var range = 50;
-                // var random = Math.random();
-                // var particle = new THREE.Vector3(Math.cos(Math.PI/(180/(360*random)))*(range*Math.random()) , Math.sin(Math.PI/(180/(360*random)))*(range*Math.random()) , Math.random() * range - range / 2);
-
-                let radius = 150.0;
+			for(var i = 0;i < vertex; i++){
+                let radius = radiusScale;
                 let cb = Math.cbrt(Math.random());      // 一様乱数の立方根
                 let yc = Math.random() * 2.0 - 1.0;     // Y 方向のコサイン相当を単に乱数から得る
                 let yr = Math.sqrt(1.0 - yc * yc);      // 逆数
@@ -123,9 +115,13 @@
                     radius * cb * yr * Math.sin(th)
                 );
 
+                particle.velocityX = (Math.random() - 0.5) / 3;
+                particle.velocityY = (Math.random() - 0.5) / 3;
+
 			    geom.vertices.push(particle);
-			    var color = new THREE.Color(0x000000);
-			    color.setHSL(color.getHSL().h,color.getHSL().s,Math.random() * color.getHSL().l);//hslは輝度、彩度、明度。明度をランダムの値にしている。
+			    var randomColor = Math.floor(Math.random() * 255);
+			    var color = new THREE.Color('rgb(' + randomColor + ',' + randomColor + ',' + randomColor + ')');
+			    //color.setHSL(color.getHSL().h,color.getHSL().s,Math.random() * color.getHSL().l);//hslは輝度、彩度、明度。明度をランダムの値にしている。
 			    geom.colors.push(color);
 			}
 
@@ -142,6 +138,15 @@
                 nowTime = (Date.now() - startTime) / 10000;
                 cloud.rotation.x = nowTime;//new THREE.Pointsという塊を回しているのだろう。
                 cloud.rotation.z = nowTime;
+                var vertices = cloud.geometry.vertices;
+                vertices.forEach(function (v) {
+                    v.y = v.y - (v.velocityY);
+                    v.x = v.x - (v.velocityX);
+
+                    if (v.y <= -60 || v.y >= 60) v.velocityY = v.velocityY * -1;
+                    if (v.x <= -60 || v.x >= 60) v.velocityX = v.velocityX * -1;
+                });
+                cloud.geometry.verticesNeedUpdate = true;
             }
 
             requestAnimationFrame(render);
